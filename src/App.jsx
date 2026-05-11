@@ -38,54 +38,62 @@ const FADE_START  = 230; // comienza fade 10s antes del fin
 const BASE_VOL    = 0.7;
 
 function useBgMusic() {
-  const audioRef    = useRef(null);
-  const fadingRef   = useRef(false);
-  const timerRef    = useRef(null);
+  const audioRef  = useRef(null);
+  const fadingRef = useRef(false);
+  const timerRef  = useRef(null);
+  const readyRef  = useRef(false);
   const [playing, setPlaying] = useState(false);
+  const [blocked, setBlocked] = useState(false);
 
   useEffect(() => {
     const audio = new Audio(MusicaFondo);
-    audio.currentTime = AUDIO_START;
-    audio.volume = BASE_VOL;
+    audio.preload = 'auto';
+    audio.volume  = BASE_VOL;
     audioRef.current = audio;
 
     const onTimeUpdate = () => {
       const t = audio.currentTime;
 
-      // Inicia fade-out 10 s antes del fin
       if (!fadingRef.current && t >= FADE_START && t < AUDIO_END) {
         fadingRef.current = true;
         const startVol = audio.volume;
         let step = 0;
-        const steps = 100; // 100 × 100 ms = 10 s
         timerRef.current = setInterval(() => {
           step++;
-          audio.volume = Math.max(0, startVol * (1 - step / steps));
-          if (step >= steps) clearInterval(timerRef.current);
+          audio.volume = Math.max(0, startVol * (1 - step / 100));
+          if (step >= 100) clearInterval(timerRef.current);
         }, 100);
       }
 
-      // Reinicia al llegar al fin
       if (t >= AUDIO_END) {
         clearInterval(timerRef.current);
         fadingRef.current = false;
         audio.currentTime = AUDIO_START;
-        // Fade-in rápido (2 s)
         audio.volume = 0;
         let stepIn = 0;
-        const stepsIn = 20;
         const fadeIn = setInterval(() => {
           stepIn++;
-          audio.volume = Math.min(BASE_VOL, BASE_VOL * (stepIn / stepsIn));
-          if (stepIn >= stepsIn) clearInterval(fadeIn);
+          audio.volume = Math.min(BASE_VOL, BASE_VOL * (stepIn / 20));
+          if (stepIn >= 20) clearInterval(fadeIn);
         }, 100);
       }
     };
 
+    // Espera a que cargue el metadata antes de buscar el minuto 2:14
+    const onLoaded = () => {
+      readyRef.current = true;
+      audio.currentTime = AUDIO_START;
+      audio.play()
+        .then(() => { setPlaying(true); setBlocked(false); })
+        .catch(() => { setBlocked(true); });
+    };
+
+    audio.addEventListener('loadedmetadata', onLoaded);
     audio.addEventListener('timeupdate', onTimeUpdate);
-    audio.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
+    audio.load();
 
     return () => {
+      audio.removeEventListener('loadedmetadata', onLoaded);
       audio.removeEventListener('timeupdate', onTimeUpdate);
       clearInterval(timerRef.current);
       audio.pause();
@@ -99,16 +107,24 @@ function useBgMusic() {
       audio.pause();
       setPlaying(false);
     } else {
-      audio.play().then(() => setPlaying(true));
+      // Si nunca buscó el punto de inicio, lo hace ahora
+      if (readyRef.current && audio.currentTime < AUDIO_START) {
+        audio.currentTime = AUDIO_START;
+      }
+      audio.play().then(() => { setPlaying(true); setBlocked(false); });
     }
   };
 
-  return { playing, toggle };
+  return { playing, blocked, toggle };
 }
 
-function MusicBtn({ playing, onClick }) {
+function MusicBtn({ playing, blocked, onClick }) {
   return (
-    <button className="music-btn" onClick={onClick} aria-label={playing ? 'Pausar música' : 'Reproducir música'}>
+    <button
+      className={`music-btn${blocked ? ' music-btn--blocked' : ''}`}
+      onClick={onClick}
+      aria-label={playing ? 'Pausar música' : 'Reproducir música'}
+    >
       {playing ? (
         <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
           <rect x="6"  y="4" width="4" height="16" rx="1"/>
@@ -119,6 +135,7 @@ function MusicBtn({ playing, onClick }) {
           <path d="M8 5v14l11-7z"/>
         </svg>
       )}
+      {blocked && <span className="music-btn__tip">Toca para escuchar</span>}
     </button>
   );
 }
@@ -230,7 +247,7 @@ export default function App() {
   const galleryTitleRef = useRef(null);
   const galleryWrapperRef = useRef(null);
   const footerRef = useRef(null);
-  const { playing, toggle } = useBgMusic();
+  const { playing, blocked, toggle } = useBgMusic();
 
   useGSAP(() => {
     // Hero entrance
@@ -289,7 +306,7 @@ export default function App() {
   return (
     <div className="landing" ref={landingRef}>
       <PetalsCanvas />
-      <MusicBtn playing={playing} onClick={toggle} />
+      <MusicBtn playing={playing} blocked={blocked} onClick={toggle} />
 
       <section className="hero">
         <p className="hero-tag">10 de Mayo &mdash; Día de la Madre</p>
