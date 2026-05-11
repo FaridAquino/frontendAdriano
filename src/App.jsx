@@ -1,11 +1,127 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import CircularGallery from './CircularGallery';
 import './index.css';
 
+import Imagen1 from './assets/images/Imagen1.jpeg';
+import Imagen2 from './assets/images/Imagen2.jpeg';
+import Imagen3 from './assets/images/Imagen3.jpeg';
+import Imagen4 from './assets/images/Imagen4.jpeg';
+import Imagen5 from './assets/images/Imagen5.jpeg';
+import Imagen6 from './assets/images/Imagen6.jpeg';
+import Imagen7 from './assets/images/Imagen7.jpeg';
+import Imagen8 from './assets/images/Imagen8.jpeg';
+import Imagen9 from './assets/images/Imagen9.jpeg';
+import Imagen10 from './assets/images/Imagen10.jpeg';
+import MusicaFondo from './assets/music/MusicaFondo.mp3';
+
 gsap.registerPlugin(useGSAP, ScrollTrigger);
+
+const GALLERY_ITEMS = [
+  { image: Imagen1,  text: 'Mi Mamá'    },
+  { image: Imagen2,  text: 'Juntos'     },
+  { image: Imagen3,  text: 'Recuerdos'  },
+  { image: Imagen4,  text: 'Familia'    },
+  { image: Imagen5,  text: 'Amor'       },
+  { image: Imagen6,  text: 'Sonrisas'   },
+  { image: Imagen7,  text: 'Momentos'   },
+  { image: Imagen8,  text: 'Cariño'     },
+  { image: Imagen9,  text: 'Abrazo'     },
+  { image: Imagen10, text: 'Felicidad'  },
+];
+
+const AUDIO_START = 134; // 2:14
+const AUDIO_END   = 240; // 4:00
+const FADE_START  = 230; // comienza fade 10s antes del fin
+const BASE_VOL    = 0.7;
+
+function useBgMusic() {
+  const audioRef    = useRef(null);
+  const fadingRef   = useRef(false);
+  const timerRef    = useRef(null);
+  const [playing, setPlaying] = useState(false);
+
+  useEffect(() => {
+    const audio = new Audio(MusicaFondo);
+    audio.currentTime = AUDIO_START;
+    audio.volume = BASE_VOL;
+    audioRef.current = audio;
+
+    const onTimeUpdate = () => {
+      const t = audio.currentTime;
+
+      // Inicia fade-out 10 s antes del fin
+      if (!fadingRef.current && t >= FADE_START && t < AUDIO_END) {
+        fadingRef.current = true;
+        const startVol = audio.volume;
+        let step = 0;
+        const steps = 100; // 100 × 100 ms = 10 s
+        timerRef.current = setInterval(() => {
+          step++;
+          audio.volume = Math.max(0, startVol * (1 - step / steps));
+          if (step >= steps) clearInterval(timerRef.current);
+        }, 100);
+      }
+
+      // Reinicia al llegar al fin
+      if (t >= AUDIO_END) {
+        clearInterval(timerRef.current);
+        fadingRef.current = false;
+        audio.currentTime = AUDIO_START;
+        // Fade-in rápido (2 s)
+        audio.volume = 0;
+        let stepIn = 0;
+        const stepsIn = 20;
+        const fadeIn = setInterval(() => {
+          stepIn++;
+          audio.volume = Math.min(BASE_VOL, BASE_VOL * (stepIn / stepsIn));
+          if (stepIn >= stepsIn) clearInterval(fadeIn);
+        }, 100);
+      }
+    };
+
+    audio.addEventListener('timeupdate', onTimeUpdate);
+    audio.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
+
+    return () => {
+      audio.removeEventListener('timeupdate', onTimeUpdate);
+      clearInterval(timerRef.current);
+      audio.pause();
+    };
+  }, []);
+
+  const toggle = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (playing) {
+      audio.pause();
+      setPlaying(false);
+    } else {
+      audio.play().then(() => setPlaying(true));
+    }
+  };
+
+  return { playing, toggle };
+}
+
+function MusicBtn({ playing, onClick }) {
+  return (
+    <button className="music-btn" onClick={onClick} aria-label={playing ? 'Pausar música' : 'Reproducir música'}>
+      {playing ? (
+        <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+          <rect x="6"  y="4" width="4" height="16" rx="1"/>
+          <rect x="14" y="4" width="4" height="16" rx="1"/>
+        </svg>
+      ) : (
+        <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+          <path d="M8 5v14l11-7z"/>
+        </svg>
+      )}
+    </button>
+  );
+}
 
 const PETAL_COLORS = ['#f9a8d4', '#f472b6', '#fda4af', '#fecdd3', '#fbcfe8', '#e879a0', '#fbb6ce'];
 
@@ -114,6 +230,7 @@ export default function App() {
   const galleryTitleRef = useRef(null);
   const galleryWrapperRef = useRef(null);
   const footerRef = useRef(null);
+  const { playing, toggle } = useBgMusic();
 
   useGSAP(() => {
     // Hero entrance
@@ -172,6 +289,7 @@ export default function App() {
   return (
     <div className="landing" ref={landingRef}>
       <PetalsCanvas />
+      <MusicBtn playing={playing} onClick={toggle} />
 
       <section className="hero">
         <p className="hero-tag">10 de Mayo &mdash; Día de la Madre</p>
@@ -190,6 +308,7 @@ export default function App() {
         <h2 ref={galleryTitleRef}>Momentos que atesoramos</h2>
         <div className="gallery-wrapper" ref={galleryWrapperRef}>
           <CircularGallery
+            items={GALLERY_ITEMS}
             bend={1}
             textColor="#ffffff"
             borderRadius={0.05}

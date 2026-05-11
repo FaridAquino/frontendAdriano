@@ -114,3 +114,68 @@ body {
 .footer span {
   color: #f9a8d4;
 }
+
+/* ── Botón de música ──────────────────────────────────────── */
+.music-btn {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 1px solid rgba(249, 168, 212, 0.4);
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(8px);
+  color: #f9a8d4;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, transform 0.15s;
+}
+
+.music-btn:hover {
+  background: rgba(249, 168, 212, 0.15);
+  border-color: #f9a8d4;
+  transform: scale(1.08);
+}
+
+.music-btn:active {
+  transform: scale(0.95);
+}
+
+/* ── Responsive móvil ─────────────────────────────────────── */
+@media (max-width: 600px) {
+  .hero {
+    padding: 80px 20px 48px;
+    gap: 16px;
+  }
+
+  .hero-subtitle {
+    font-size: 0.95rem;
+  }
+
+  .gallery-wrapper {
+    height: 340px;
+  }
+
+  .gallery-section {
+    padding: 24px 0 60px;
+  }
+
+  .gallery-section h2 {
+    margin-bottom: 20px;
+  }
+
+  .footer {
+    padding: 32px 20px;
+  }
+
+  .music-btn {
+    bottom: 16px;
+    right: 16px;
+    width: 44px;
+    height: 44px;
+  }
+}
